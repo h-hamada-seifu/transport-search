@@ -13,6 +13,7 @@ export default function Home() {
   const [routeResult, setRouteResult] = useState<RouteResult | null>(null);
   const [isSearching, setIsSearching] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
 
   // ルート検索実行
   const handleSearch = async () => {
@@ -44,6 +45,27 @@ export default function Home() {
     }
   };
 
+  // ログアウト処理
+  const handleLogout = async () => {
+    setIsLoggingOut(true);
+    try {
+      const response = await fetch('/api/auth/logout', {
+        method: 'POST',
+      });
+
+      if (response.ok) {
+        // ログアウト成功: ホームページにリダイレクト（ミドルウェアがログインページに転送）
+        window.location.href = '/';
+      } else {
+        setError('ログアウトに失敗しました');
+      }
+    } catch (err) {
+      setError(getErrorMessage(err));
+    } finally {
+      setIsLoggingOut(false);
+    }
+  };
+
   // 検索ボタンが有効かどうか
   const isSearchDisabled = !selectedStation || !selectedSchool || isSearching;
 
@@ -51,13 +73,22 @@ export default function Home() {
     <div className="min-h-screen bg-gradient-to-b from-blue-50 to-white">
       <div className="max-w-3xl mx-auto px-4 py-8">
         {/* ヘッダー */}
-        <header className="text-center mb-8">
+        <header className="text-center mb-8 relative">
           <h1 className="text-3xl font-bold text-gray-800 mb-2">
             🚃 進路指導訪問 所要時間検索
           </h1>
           <p className="text-gray-600">
             出発駅から訪問先学校までの所要時間・距離を検索します
           </p>
+          {/* ログアウトボタン */}
+          <button
+            onClick={handleLogout}
+            disabled={isLoggingOut}
+            className="absolute top-0 right-0 px-4 py-2 text-sm text-gray-600 hover:text-gray-800 hover:bg-gray-100 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            aria-label="ログアウト"
+          >
+            {isLoggingOut ? 'ログアウト中...' : 'ログアウト'}
+          </button>
         </header>
 
         {/* メインコンテンツ */}
