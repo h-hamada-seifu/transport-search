@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 const AUTH_SERVER_URL = process.env.AUTH_SERVER_URL || 'http://localhost:8000';
+const PROJECT_ID = process.env.NEXT_PUBLIC_PROJECT_ID || 'transport-search';
 
 /**
  * ログアウトAPI
@@ -15,7 +16,9 @@ export async function POST(request: NextRequest): Promise<NextResponse> {
     { status: 200 }
   );
 
-  // 両方のクッキーを削除（互換性のため）
+  // プロジェクト固有のCookieと従来のCookieを削除（互換性のため）
+  const cookieName = `session_${PROJECT_ID}`;
+  response.cookies.delete(cookieName);
   response.cookies.delete('session');
   response.cookies.delete('auth_token');
 

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 const AUTH_SERVER_URL = process.env.AUTH_SERVER_URL || 'http://localhost:8000';
+const PROJECT_ID = process.env.NEXT_PUBLIC_PROJECT_ID || 'transport-search';
 
 /**
  * 認証コールバックAPI
@@ -68,8 +69,10 @@ export async function GET(request: NextRequest): Promise<NextResponse> {
     }
 
     // レスポンスを作成し、セッションクッキーを設定
+    // プロジェクト固有のCookie名を使用して、複数プロジェクトでのCookie混同を防ぐ
     const response = NextResponse.redirect(redirectUrl);
-    response.cookies.set('session', token, {
+    const cookieName = `session_${PROJECT_ID}`;
+    response.cookies.set(cookieName, token, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
       sameSite: 'lax',

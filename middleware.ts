@@ -29,8 +29,10 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // セッションクッキーを取得（auth_tokenまたはsessionのどちらか）
-  const sessionCookie = request.cookies.get('session') || request.cookies.get('auth_token');
+  // セッションクッキーを取得
+  // プロジェクト固有のCookie名を優先し、後方互換性のため従来のCookie名もチェック
+  const cookieName = `session_${PROJECT_ID}`;
+  const sessionCookie = request.cookies.get(cookieName) || request.cookies.get('session') || request.cookies.get('auth_token');
 
   if (!sessionCookie) {
     // 未認証: ログインページにリダイレクト
@@ -55,7 +57,8 @@ export async function middleware(request: NextRequest) {
       loginUrl.searchParams.set('redirect', request.url);
 
       const response = NextResponse.redirect(loginUrl);
-      // 無効なトークンを削除
+      // 無効なトークンを削除（プロジェクト固有のCookieと従来のCookieの両方）
+      response.cookies.delete(cookieName);
       response.cookies.delete('session');
       response.cookies.delete('auth_token');
       return response;
