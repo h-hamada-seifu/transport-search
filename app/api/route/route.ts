@@ -56,8 +56,9 @@ export async function GET(request: NextRequest): Promise<NextResponse<RouteResul
     const startTime = new Date().toISOString().slice(0, 19);
 
     // NAVITIME Route API呼び出し
+    // unuse=ultraexpress_train: 特急料金を必須とする列車を除外（追加料金不要の特急は含まれる）
     const response = await fetch(
-      `https://navitime-route-totalnavi.p.rapidapi.com/route_transit?start=${encodeURIComponent(start)}&goal=${lat},${lon}&start_time=${startTime}`,
+      `https://navitime-route-totalnavi.p.rapidapi.com/route_transit?start=${encodeURIComponent(start)}&goal=${lat},${lon}&start_time=${startTime}&unuse=ultraexpress_train`,
       {
         headers: {
           'X-RapidAPI-Key': RAPIDAPI_KEY,
