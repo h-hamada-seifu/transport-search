@@ -57,6 +57,82 @@ unified-auth-server の `/Volumes/990PRO_SSD/dev/unified-auth-server/app/config.
 - **token_expiry_days**: `7`
   - セッションの有効期限は7日間
 
+### 1.4 プロジェクト固有のCookie名（重要）
+
+**複数プロジェクトでのCookie混同を防ぐため、プロジェクト固有のCookie名を使用します。**
+
+#### 背景
+同じ認証サーバーを使用する複数プロジェクト（transport-search、slide-video等）を同じブラウザでテストする際、従来の共通Cookie名（`session`）ではCookieが混同し、誤ったプロジェクトにリダイレクトされる問題が発生していました。
+
+#### 解決策
+各プロジェクトで固有のCookie名を使用してセッションを完全に分離します。
+
+**Cookie名の命名規則**:
+```
+session_{PROJECT_ID}
+```
+
+**例**:
+- transport-search: `session_transport-search`
+- slide-video: `session_slide-video`
+- test-project: `session_test-project`
+
+#### 実装方法
+
+**認証コールバック処理**:
+```typescript
+// トークンを受け取った後、プロジェクト固有のCookie名で保存
+const PROJECT_ID = process.env.NEXT_PUBLIC_PROJECT_ID || 'transport-search';
+const cookieName = `session_${PROJECT_ID}`;
+
+response.cookies.set(cookieName, token, {
+  httpOnly: true,
+  secure: process.env.NODE_ENV === 'production',
+  sameSite: 'lax',
+  maxAge: 60 * 60 * 24 * 7, // 7日間
+  path: '/',
+});
+```
+
+**認証チェック処理（ミドルウェア）**:
+```typescript
+// プロジェクト固有のCookieを優先、後方互換性のため従来のCookieもチェック
+const PROJECT_ID = process.env.NEXT_PUBLIC_PROJECT_ID || 'transport-search';
+const cookieName = `session_${PROJECT_ID}`;
+const sessionCookie = request.cookies.get(cookieName)
+  || request.cookies.get('session')     // 後方互換性
+  || request.cookies.get('auth_token'); // 後方互換性
+```
+
+**ログアウト処理**:
+```typescript
+// プロジェクト固有のCookieと従来のCookieの両方を削除
+const PROJECT_ID = process.env.NEXT_PUBLIC_PROJECT_ID || 'transport-search';
+const cookieName = `session_${PROJECT_ID}`;
+
+response.cookies.delete(cookieName);
+response.cookies.delete('session');     // 後方互換性
+response.cookies.delete('auth_token');  // 後方互換性
+```
+
+#### メリット
+- ✅ 同じブラウザで複数プロジェクトを並行してテスト可能
+- ✅ Cookie混同によるリダイレクト先の誤りを完全に防止
+- ✅ プロジェクトごとに独立したセッション管理
+- ✅ セキュリティの向上
+- ✅ デバッグの容易化（どのプロジェクトのセッションか明確）
+
+#### 新規プロジェクト追加時のチェックリスト
+新しいプロジェクトを認証サーバーに追加する際は、以下を確認してください：
+
+- [ ] プロジェクトIDを決定（例: `new-project`）
+- [ ] 環境変数 `NEXT_PUBLIC_PROJECT_ID` を設定
+- [ ] Cookie名を `session_{PROJECT_ID}` の形式で実装
+- [ ] 認証コールバック処理でプロジェクト固有のCookie名を使用
+- [ ] 認証チェック処理でプロジェクト固有のCookie名を優先
+- [ ] ログアウト処理でプロジェクト固有のCookieを削除
+- [ ] 後方互換性のため従来のCookie名もチェック・削除
+
 ---
 
 ## 2. アプリケーション側の設定
@@ -222,6 +298,34 @@ npm run dev
 **確認事項**:
 1. ログインしたアカウントのドメインが `i-seifu.jp` であるか
 2. `allowed_domains` の設定が正しいか
+
+### 6.5 別のプロジェクトにリダイレクトされる
+
+**原因**: Cookie混同（複数プロジェクトを同じブラウザでテスト）
+
+**症状**:
+- transport-search にアクセスしたのに slide-video にリダイレクトされる
+- 逆に slide-video にアクセスしたのに transport-search にリダイレクトされる
+
+**確認事項**:
+1. 同じブラウザで複数プロジェクトのテストを行っていないか
+2. プロジェクト固有のCookie名（`session_{PROJECT_ID}`）を使用しているか
+3. ブラウザのCookieに古いセッション情報が残っていないか
+
+**解決方法**:
+
+**即効性のある対処**:
+1. ブラウザのCookieをクリア
+   ```
+   DevTools (F12) → Application → Cookies
+   → unified-auth-server のCookieをすべて削除
+   ```
+2. シークレット/プライベートモードでアクセス
+3. 異なるブラウザプロファイルを使用
+
+**根本的な解決**:
+- プロジェクト固有のCookie名を実装（セクション1.4参照）
+- 全プロジェクトでこの実装を適用することで、Cookie混同を完全に防止
 
 ---
 
